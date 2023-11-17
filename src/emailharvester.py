@@ -103,7 +103,6 @@ def scrape_email_addresses(url):
     emails = re.findall(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', soup.get_text())
     for email in emails:
         if email.lower() not in email_set:
-            print(f'Found a text string that looks like an email address: {email}')
             found_email(email, email, soup.title.text, url)
 
     # Print a summary after all links from a page have been checked
@@ -120,7 +119,7 @@ def visited_url(url):
 def found_email(email, text, context, url):
     global email_set
     email_set.add(email.lower())
-    print(f'Found new address {email}')
+    print(f'Found new email address: {email}')
     row = [email, text, context, url]
     with open(results_file, mode='a', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
