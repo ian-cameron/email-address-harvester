@@ -16,8 +16,8 @@ Progress will be printed to the console when a page crawl begins, when an email 
 
         ...
         Now crawling https://www.example.com/about/economicdevelopment.asp
-        Found new address public-outreach@example.com
-        Found a text string that looks like an email address: Manager@example.com
+        Found new email address: public-outreach@example.com
+        Found new email address: Manager@example.com
         Completed crawling about/economicdevelopment.asp:
                 146     total links.
                 0       newly discovered.

@@ -73,7 +73,7 @@ def scrape_email_addresses(url):
     total_links = len(soup.find_all('a', href=True))
     skipped_links = prior_links = new_links = email_links = prior_emails = 0
     for link in soup.find_all('a', href=True):
-        # Save mailto: links and continue on
+        # Save mailto: links and continue
         if link.has_attr('href') and link['href'].startswith('mailto:'):
             email = link['href'][7:].split('?')[0].strip()            
             if email.lower() not in email_set:
@@ -99,7 +99,7 @@ def scrape_email_addresses(url):
         print(f'Now crawling {next_url}') 
         new_links += 1    
         scrape_email_addresses(next_url)
-    # Check for any remaining emails not from mailto.
+    # Check for any remaining emails not in a mailto:
     emails = re.findall(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', soup.get_text())
     for email in emails:
         if email.lower() not in email_set:
@@ -108,6 +108,7 @@ def scrape_email_addresses(url):
     # Print a summary after all links from a page have been checked
     print(f'Completed crawling {url.replace(base_url,'')}:\n\t{total_links}\ttotal links.\n\t{new_links}\tnewly discovered.\n\t{prior_links}\talready crawled.\n\t{skipped_links}\texcluded.\n\t{email_links}\tnew emails found.\n\t{prior_emails}\texisting emails skipped.')          
 
+# Write visited URL to log file and save in the global list
 def visited_url(url):
     global visited_urls
     visited_urls.add(url.lower())
@@ -116,6 +117,7 @@ def visited_url(url):
         writer = csv.writer(file)
         writer.writerow(row)
 
+# Write email to CSV file and save in the global list
 def found_email(email, text, context, url):
     global email_set
     email_set.add(email.lower())
@@ -127,25 +129,15 @@ def found_email(email, text, context, url):
 
 # Find some text closest to the link
 def find_context(link, fallback): 
-    try: 
+    try:
+        # Any adjacent text
         context = clean_txt(link.next_sibling.text) if link.next_sibling else ''
         if context == '':
             context = clean_txt(link.previous_sibling.text) if link.previous_sibling else ''
-        if context == '':
-            context = clean_txt(clean_txt(link.parent.text.replace(link.text,'')))
         parents = link.find_parents() if context == '' else []
         if context == '':
-            context = clean_txt(parents[1].find(re.compile('^h[1-6]$')).text) if len(parents) >= 2 and parents[1].find(re.compile('^h[1-6]$')) else ''
-        if context == '':
-            context = clean_txt(parents[2].find(re.compile('^h[1-6]$')).text) if len(parents) >= 3 and parents[2].find(re.compile('^h[1-6]$')) else ''
-        if context == '':
-            context = clean_txt(parents[3].find(re.compile('^h[1-6]$')).text) if len(parents) >= 4 and parents[3].find(re.compile('^h[1-6]$')) else ''         
-        if context == '':
-            context = clean_txt(parents[4].find(re.compile('^h[1-6]$')).text) if len(parents) >= 5 and parents[4].find(re.compile('^h[1-6]$')) else ''
-        if context == '':
-            context = clean_txt(parents[5].find(re.compile('^h[1-6]$')).text) if len(parents) >= 6 and parents[5].find(re.compile('^h[1-6]$')) else ''
-        if context == '':
-            context = clean_txt(link.find_parent('tr').find('td').text) if link.find_parent('tr') and link.find_parent('tr').find('td') else ''
+        # Any text in the next 5 ancestor elements
+            context = parent_search(parents, 5)
         if context == '':
             context = clean_txt(fallback)
     except Exception as e:
@@ -153,12 +145,27 @@ def find_context(link, fallback):
         context = 'Error'
     return context
 
+# Find short text sections without special punctuation or common words
 def clean_txt(str):
     result = str.strip().split('\n')[0]
-    result = re.sub(r"['\",|.;`~#$%^&*]","",result)
-    result = re.sub(re.compile(r'email:?', re.IGNORECASE),"",result).strip()
+    result = re.sub(r"['\"|.;:`~#$%^&*]","",result)
+    result = re.sub(re.compile(r'\b(Send|Email|Contact)\b', re.IGNORECASE),"",result).strip()
     return result if len(result) > 3 and len(result) < 60 else ''
 
+# Locate short text content in the next N parent elements
+def parent_search(parents, depth, i = None):
+    if i is None:
+        i = 0
+    if not len(parents) > i:
+        return ''
+    text = clean_txt(parents[i].text)
+    if not text == '' or i == depth:
+        return text
+    # Look only in headings if the full text didn't match
+    text = clean_txt(parents[i].find(re.compile('^h[1-6]$')).text) if parents[i].find(re.compile('^h[1-6]$')) else ''
+    return parent_search(parents, depth, i+1)
+
+# Display difference between start and end timestamps
 def print_time_delta(start_ts, end_ts):
     ts_diff = end_ts - start_ts
     secs = ts_diff.total_seconds()
@@ -168,12 +175,17 @@ def print_time_delta(start_ts, end_ts):
     secs = round(secs, 2)
     print(f'Duration: {int(days)} days, {int(hrs)} hrs, {int(mins)} mins and {int(secs)} secs')
 
+# Record starting performance statistics 
 starting = datetime.now()
 starting_urls = len(visited_urls)
 starting_emails = len(email_set)
 print(f'Starting with {starting_urls} URLs and {starting_emails} emails.')
 visited_url(base_url)
+
+# Enter the main program loop
 scrape_email_addresses(base_url)
+
+# Record ending performance statistics
 ending = datetime.now()
 total_emails = sum(1 for line in open(results_file, encoding='utf-8'))-1
 print(f'Done. Visited {len(visited_urls)-starting_urls} new URLs and skipped {starting_urls} existing.\nFound {total_emails} total email addresses, {len(email_set)-starting_emails} new.')
