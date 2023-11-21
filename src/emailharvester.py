@@ -90,7 +90,7 @@ def scrape_email_addresses(queue):
                 email = link['href'][7:].split('?')[0].strip()            
                 if email.lower() not in email_set:
                     email_links += 1
-                    text = link.text.strip()
+                    text = link.text.split('\n')[0].strip()
                     found_email(email, text, find_context(link, soup.title.text), url)
                     continue
                 else:
@@ -194,7 +194,7 @@ def find_context(link, fallback):
     except Exception as e:
         print(f'DEBUG: ERROR in find_context(link, fallback): {link}\n{getattr(e, 'message', repr(e))}')
         context = 'Error'
-    return context
+    return context.strip(',-| ')
 
 # Find short text sections without special punctuation or common words
 def clean_txt(str):
@@ -252,5 +252,8 @@ scrape_email_addresses(queue)
 # Record ending performance statistics
 ending = datetime.now()
 total_emails = sum(1 for line in open(results_file, encoding='utf-8'))-1
-print(f'Done. Visited {len(visited_urls)-starting_urls} new URLs and skipped {starting_urls} existing.\nFound {total_emails} total email addresses, {len(email_set)-starting_emails} new.')
+print(f'Done. Visited {len(visited_urls)-starting_urls} \
+    new URLs and skipped {starting_urls} existing.\n \
+    Found {total_emails} total email addresses, \
+    {len(email_set)-starting_emails} new.')
 print_time_delta(starting, ending)
