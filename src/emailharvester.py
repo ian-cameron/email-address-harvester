@@ -65,75 +65,72 @@ with open(history_file, mode='r', newline='', encoding='utf-8') as file:
     for row in reader:
         visited_urls.add(row['URL'].lower())
 
-# Breadth-first recursive site crawling function definition
+# Breadth-first site crawling function definition (main loop)
 def scrape_email_addresses(queue):
-    if queue.empty():
-        return
-    item = queue.get()
-    url = item[0]
-    depth = item[1]
-    try: response = requests.get(url, headers=request_headers)
-    except Exception as e:
-        print(f'REQUEST ERROR: {url}\n{getattr(e, 'message', repr(e))}')
-        return
-    # Confirm content type is html
-    rtype = response.headers.get('content-type')
-    if not rtype.startswith('text/html'):
-        print(f'Not html content: {rtype}')
-        return
-    soup = BeautifulSoup(response.content, 'html.parser')
-    total_links = len(soup.find_all('a', href=True))
-    skipped_links = prior_links = new_links = email_links = prior_emails = 0
-    # Find non-js and non-anchor links
-    for link in soup.find_all("a", href=re.compile(r"^(?!javascript|#|tel|data|ftp)")):
-        # Save mailto: links and continue
-        if link.has_attr('href') and link['href'].startswith('mailto:'):
-            email = link['href'][7:].split('?')[0].strip()            
-            if email.lower() not in email_set:
-                email_links += 1
-                text = link.text.strip()
-                found_email(email, text, find_context(link, soup.title.text), url)
+    while not queue.empty():
+        work_item = queue.get()
+        url = work_item[0]
+        depth = work_item[1]
+        try: response = requests.get(url, headers=request_headers)
+        except Exception as e:
+            print(f'REQUEST ERROR: {url}\n{getattr(e, 'message', repr(e))}')
+            return
+        # Confirm content type is html
+        rtype = response.headers.get('content-type')
+        if not rtype.startswith('text/html'):
+            print(f'Not html content: {rtype}')
+            return
+        soup = BeautifulSoup(response.content, 'html.parser')
+        total_links = len(soup.find_all('a', href=True))
+        skipped_links = prior_links = new_links = email_links = prior_emails = 0
+        # Find non-js and non-anchor links
+        for link in soup.find_all("a", href=re.compile(r"^(?!javascript|#|tel|data|ftp)")):
+            # Save mailto: links and continue
+            if link.has_attr('href') and link['href'].startswith('mailto:'):
+                email = link['href'][7:].split('?')[0].strip()            
+                if email.lower() not in email_set:
+                    email_links += 1
+                    text = link.text.strip()
+                    found_email(email, text, find_context(link, soup.title.text), url)
+                    continue
+                else:
+                    prior_emails += 1
+                    continue
+            # Crawl non-mailto: links
+            next_url = normalize_url(link.get('href'), url)
+            # Skip visited URLs
+            if next_url.lower() in visited_urls:
+                prior_links += 1
                 continue
-            else:
-                prior_emails += 1
+            # Don't go deeper than max_depth
+            if depth < 0:
+                print(f'Crawling depth limit reached, skipping {next_url} from {url}')
+                skipped_links += 1
                 continue
-        # Crawl non-mailto: links
-        next_url = normalize_url(link.get('href'), url)
-        # Skip visited URLs
-        if next_url.lower() in visited_urls:
-            prior_links += 1
-            continue
-        # Don't go deeper than max_depth
-        if depth < 0:
-            print(f'Crawling depth limit reached, skipping {next_url} from {url}')
-            skipped_links += 1
-            continue
-        # Skip external sites and known file types
-        if skip_url(next_url):
-            skipped_links += 1
-            continue
-        # Rate limit crawler
-        time.sleep(1/crawl_rate)
-        visited_url(next_url)
-        queue.put((next_url, depth-1))
-        new_links += 1    
-        
-    # Check for any remaining emails not in a mailto:
-    emails = reduce_generator(soup.stripped_strings)
-    for email in emails:
-        if email.lower() not in email_set:
-            found_email(email, email, soup.title.text, url)
+            # Skip external sites and known file types
+            if skip_url(next_url):
+                skipped_links += 1
+                continue
+            # Rate limit crawler
+            time.sleep(1/crawl_rate)
+            visited_url(next_url)
+            queue.put((next_url, depth-1))
+            new_links += 1    
 
-    # Print a summary after all links from a page have been checked
-    print(f'Completed crawling {url.replace(base_url,'')} ({abs(-max_depth + depth)} levels from root):\n \
-          \t{total_links}\ttotal links.\n \
-          \t{new_links}\tnewly discovered.\n \
-          \t{prior_links}\talready crawled.\n \
-          \t{skipped_links}\texcluded.\n \
-          \t{email_links}\tnew emails found.\n \
-          \t{prior_emails}\texisting emails skipped.')
-    
-    scrape_email_addresses(queue)
+        # Check for any remaining emails not in a mailto:
+        emails = reduce_generator(soup.stripped_strings)
+        for email in emails:
+            if email.lower() not in email_set:
+                found_email(email, email, soup.title.text, url)
+
+        # Print a summary after all links from a page have been checked
+        print(f'Completed crawling {url.replace(base_url,'')} ({abs(-max_depth + depth)} levels from root):\n \
+              \t{total_links}\ttotal links.\n \
+              \t{new_links}\tnewly discovered.\n \
+              \t{prior_links}\talready crawled.\n \
+              \t{skipped_links}\texcluded.\n \
+              \t{email_links}\tnew emails found.\n \
+              \t{prior_emails}\texisting emails skipped.')
 
 def normalize_url(url, referer):
     # Remove fragments
@@ -249,7 +246,7 @@ visited_url(base_url)
 
 # Enter the main program loop
 queue = queue.Queue()
-queue.put((base_url,max_depth))
+queue.put((base_url, max_depth))
 scrape_email_addresses(queue)
                        
 # Record ending performance statistics
