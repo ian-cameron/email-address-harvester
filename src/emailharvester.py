@@ -1,21 +1,23 @@
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
-import queue
-import sys
-import csv
-import time
-import re
-import os
+import os, re, sys, csv, time, queue
 
-# Require a URL as an argument
-if not len(sys.argv) == 2:
-    print(f'Missing required argument.  Provide a URL.\nUsage example: python {sys.argv[0]} https://site-to-crawl.com/contact/')
-    exit(2)
-base_url = sys.argv[1].lower()
+# Accept a URL as an argument, or prompt for one
+if len(sys.argv) == 2:
+    if sys.argv[1].lower() in ['-h', '--help', '/?']:
+        print(f'(Optional)  Provide a URL.\nUsage example: {sys.argv[0]} https://site-to-crawl.com/contact/')
+        sys.exit(1)
+    else:
+        base_url = sys.argv[1].lower()
+elif len(sys.argv) == 1:
+    base_url = input('Enter a URL to crawl: ')
+else:
+    print(f'Usage:\n \t--help or -h\t Display help and exit.')
+    sys.exit(2)
 
 # Set crawler user agent string
-request_headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+request_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
 # Set max requests per second
 crawl_rate = 5
 # Set max depth of crawl
@@ -28,13 +30,15 @@ excluded =['doc','docx','docm','ppt','ppsx','pptx','xls','xlsx','xlsm','accdb','
 try: response = requests.get(base_url, headers=request_headers)
 except Exception as e:
     print(getattr(e, 'message', repr(e)))
+    input("Press Enter to exit...")
     exit()
 if not response.ok:
     print(f'Unable to crawl {base_url} - {response.status_code} {response.reason}')
+    input("Press Enter to exit...")
     exit()
 
 # Generate a filesystem-friendly name from the URL for results and log
-filename = re.sub(r"[/\\?%*:|\"<>\x7F\x00-\x1F]", "-", base_url.replace("http://", "").replace("https://", ""))
+filename = re.sub(r'[/\\?%*:|\"<>\x7F\x00-\x1F]', '-', base_url.replace('http://', '').replace('https://', ''))
 history_file = f'{filename}-history.log'
 results_file = f'{filename}-emails.csv'
 
@@ -73,7 +77,7 @@ def scrape_email_addresses(queue):
         depth = work_item[1]
         try: response = requests.get(url, headers=request_headers)
         except Exception as e:
-            print(f'REQUEST ERROR: {url}\n{getattr(e, 'message', repr(e))}')
+            print(f'REQUEST ERROR: {url}\n{getattr(e, "message", repr(e))}')
             return
         # Confirm content type is html
         rtype = response.headers.get('content-type')
@@ -124,7 +128,7 @@ def scrape_email_addresses(queue):
                 found_email(email, email, soup.title.text, url)
 
         # Print a summary after all links from a page have been checked
-        print(f'Completed crawling {url.replace(base_url,'')} ({abs(-max_depth + depth)} levels from root):\n \
+        print(f'Completed crawling {url.replace(base_url,"")} ({abs(-max_depth + depth)} levels from root):\n \
               \t{total_links}\ttotal links.\n \
               \t{new_links}\tnewly discovered.\n \
               \t{prior_links}\talready crawled.\n \
@@ -139,10 +143,10 @@ def normalize_url(url, referer):
     url = re.sub(r'(?<!:)//+','/', url)
     # Add base URL host to site relative URLs
     if url.startswith('/'):
-        return re.match(r"https?://[^/]+",base_url).group(0) + url
+        return re.match(r'https?://[^/]+',base_url).group(0) + url
     # Add referer to page relative URL without querystring params
     if not url.startswith('http'):
-        return re.sub(r"(?<!/)$", "/", referer.split('?')[0]) + url
+        return re.sub(r'(?<!/)$', '/', referer.split('?')[0]) + url
     return url  
 
 # Determine if a URL should not be crawled
@@ -151,8 +155,8 @@ def skip_url(url):
      if url.split('.')[-1].split('?')[0].split('#')[0].lower() in excluded:
          return True
      # Consider optional www in URLs to be same base URL
-     if not "://www." in base_url:
-        url = url.replace("://www.", "://")
+     if not '://www.' in base_url:
+        url = url.replace('://www.', '://')
      # Skip external urls
      if not url.startswith(base_url):
         return True
@@ -192,15 +196,15 @@ def find_context(link, fallback):
         if context == '':
             context = clean_txt(fallback)
     except Exception as e:
-        print(f'DEBUG: ERROR in find_context(link, fallback): {link}\n{getattr(e, 'message', repr(e))}')
+        print(f'DEBUG: ERROR in find_context(link, fallback): {link}\n{getattr(e, "message", repr(e))}')
         context = 'Error'
     return context.strip(',-| ')
 
 # Find short text sections without special punctuation or common words
 def clean_txt(str):
     result = str.strip().split('\n')[0]
-    result = re.sub(r"['\"|.;:`~#$%^&*]","",result)
-    result = re.sub(re.compile(r'\b(Send|Email|Contact)\b', re.IGNORECASE),"",result).strip()
+    result = re.sub(r'[\'"|.;:`~#$%^&*]','',result)
+    result = re.sub(re.compile(r'\b(Send|Email|Contact)\b', re.IGNORECASE),'',result).strip()
     return result if len(result) > 3 and len(result) < 60 else ''
 
 # Locate short text content in the next N parent elements
@@ -247,13 +251,13 @@ visited_url(base_url)
 # Enter the main program loop
 queue = queue.Queue()
 queue.put((base_url, max_depth))
+print(f'Starting crawl of {base_url}...')
 scrape_email_addresses(queue)
                        
 # Record ending performance statistics
 ending = datetime.now()
 total_emails = sum(1 for line in open(results_file, encoding='utf-8'))-1
-print(f'Done. Visited {len(visited_urls)-starting_urls} \
-    new URLs and skipped {starting_urls} existing.\n \
-    Found {total_emails} total email addresses, \
-    {len(email_set)-starting_emails} new.')
+print(f'Done. Visited {len(visited_urls)-starting_urls} new URLs and skipped {starting_urls} existing.\n \
+Found {total_emails} total email addresses, {len(email_set)-starting_emails} new.')
 print_time_delta(starting, ending)
+input("Press Enter to exit...")
