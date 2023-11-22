@@ -1,21 +1,29 @@
-import requests
+from requests import get
 from bs4 import BeautifulSoup
 from datetime import datetime
-import os, re, sys, csv, time, queue
+from os import path
+import sys, re, csv, time, queue
+
+splash = getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
+# Update the text on the splash screen if running as a pyi bundle
+if splash:
+    import pyi_splash
+    pyi_splash.update_text("Ready to harvest...")
 
 # Accept a URL as an argument, or prompt for one
 if len(sys.argv) == 2:
     if sys.argv[1].lower() in ['-h', '--help', '/?']:
         print(f'(Optional)  Provide a URL.\nUsage example: {sys.argv[0]} https://site-to-crawl.com/contact/')
-        sys.exit(1)
+        exit(1)
     else:
         base_url = sys.argv[1].lower()
 elif len(sys.argv) == 1:
     base_url = input('Enter a URL to crawl: ')
 else:
     print(f'Usage:\n \t--help or -h\t Display help and exit.')
-    sys.exit(2)
-
+    exit(2)
+if splash:
+    pyi_splash.close()
 # Set crawler user agent string
 request_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
 # Set max requests per second
@@ -27,7 +35,7 @@ excluded =['doc','docx','docm','ppt','ppsx','pptx','xls','xlsx','xlsm','accdb','
 
 
 # Verify the URL
-try: response = requests.get(base_url, headers=request_headers)
+try: response = get(base_url, headers=request_headers)
 except Exception as e:
     print(getattr(e, 'message', repr(e)))
     input("Press Enter to exit...")
@@ -46,7 +54,7 @@ visited_urls = set()
 email_set = set()
 
 # Initialize results file if it doesn't exist
-if not os.path.isfile(results_file):
+if not path.isfile(results_file):
     with open(results_file, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(['Email', 'Link Text', 'Context', 'URL'])
@@ -58,7 +66,7 @@ with open(results_file, mode='r', newline='', encoding='utf-8') as file:
         email_set.add(row['Email'].lower())
 
 # Initialize history file if it doesn't exist
-if not os.path.isfile(history_file):
+if not path.isfile(history_file):
     with open(history_file, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(['Timestamp','URL'])
@@ -75,7 +83,7 @@ def scrape_email_addresses(queue):
         work_item = queue.get()
         url = work_item[0]
         depth = work_item[1]
-        try: response = requests.get(url, headers=request_headers)
+        try: response = get(url, headers=request_headers)
         except Exception as e:
             print(f'REQUEST ERROR: {url}\n{getattr(e, "message", repr(e))}')
             return
