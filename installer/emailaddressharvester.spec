@@ -33,7 +33,7 @@ exe = EXE(
     splash,
     splash.binaries,
     [],
-    name='emailharvester',
+    name='emailaddressharvester',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
