@@ -1,5 +1,5 @@
 # Email Address Harvester
- <img style = "float:right" src="https://raw.githubusercontent.com/ian-cameron/email-harvester/main/installer/assets/icon.ico"> Crawls a website and harvests email addresses. Email addresses are identified from `<a href="mailto:...">` tags, or text that matches common email format of `user@domain.tld` 
+ <img style="float:right;" src="https://raw.githubusercontent.com/ian-cameron/email-harvester/main/installer/assets/icon.ico"> Crawls a website and harvests email addresses. Email addresses are identified from `<a href="mailto:...">` tags, or text that matches common email format of `user@domain.tld` 
  
  It will crawl a site by following new internal links in a breadth-first search.  Logs each URL it visits in a .log file.  URLs that end with a common file extension like .jpg, .mov, .zip, etc are ignored, because they are most likely not text/html content and will not have any mailto: links. Results are saved to a .csv file with the columns: 
  
