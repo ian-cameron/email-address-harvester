@@ -9,6 +9,8 @@ splash = getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
 if splash:
     import pyi_splash
     pyi_splash.update_text("Ready to harvest...")
+    time.sleep(2.5)
+    pyi_splash.close()
 
 # Accept a URL as an argument, or prompt for one
 if len(sys.argv) == 2:
@@ -18,7 +20,7 @@ if len(sys.argv) == 2:
     else:
         base_url = sys.argv[1].lower()
 elif len(sys.argv) == 1:
-    base_url = input('Enter a URL to crawl: ')
+    base_url = input('Enter a URL to crawl (https://): ')
 else:
     print(f'Usage:\n \t--help or -h\t Display help and exit.')
     exit(2)
@@ -35,9 +37,11 @@ excluded =['doc','docx','docm','ppt','ppsx','pptx','xls','xlsx','xlsm','accdb','
 
 
 # Verify the URL
+base_url = ('' if base_url.startswith('http') else 'https://') + base_url
 try: response = get(base_url, headers=request_headers)
 except Exception as e:
     print(getattr(e, 'message', repr(e)))
+    print('Please confirm address and internet connection.')
     input("Press Enter to exit...")
     exit()
 if not response.ok:
