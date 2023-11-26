@@ -1,5 +1,7 @@
 # Email Address Harvester
- <img align="right" src="https://raw.githubusercontent.com/ian-cameron/email-harvester/main/installer/assets/icon.ico"> Crawls a website and harvests email addresses. Email addresses are identified from `<a href="mailto:...">` tags, or text that matches common email format of `user@domain.tld` 
+ <img align="right" src="https://raw.githubusercontent.com/ian-cameron/email-harvester/main/installer/assets/icon.ico">
+ 
+Crawls a website and harvests email addresses. Email addresses are identified from `<a href="mailto:...">` tags, or text that matches common email format of `user@domain.tld` 
  
  It will crawl a site by following new internal links in a breadth-first search.  Logs each URL it visits in a .log file.  URLs that end with a common file extension like .jpg, .mov, .zip, etc are ignored, because they are most likely not text/html content and will not have any mailto: links. Results are saved to a .csv file with the columns: 
  
@@ -37,11 +39,11 @@ Progress will be printed to the console when a page crawl begins, when an email 
         Found 92 total email addresses, 34 new.
         Duration: 0 days, 0 hrs, 2 mins and 30 secs
 
-### Batch Usage
-You could run several crawls seqentiually by calling the program with many different urls in a single .bat file.  Create `multisite.bat` with the following contents:
+### Batchfile Usage
+You could run several crawls seqentiually by calling the program with many different urls in a single .bat file, and pipe the Enter key to continue when the script pauses at the end of a run.  For example if you use the released .exe, create `multisite.bat` with the following contents:
 
-        python ./src/emailaddressharvester.py https://exmaple.com
-        python ./src/emailaddressharvester.py https://exmaple2.com
-        python ./src/emailaddressharvester.py https://exmaple3.com 
-
+        echo/|call emailaddressharvester.exe https://example.com
+        echo/|call emailaddressharvester.exe https://example2.com
+        emailaddressharvester.exe https://example3.com
+        
 Then double-click it.  Results will be saved to separate files per site.
